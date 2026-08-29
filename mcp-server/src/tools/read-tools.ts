@@ -11,8 +11,9 @@ const companyParam = z.object({
 
 const dateRangeParams = z.object({
   company: z.string().optional().describe('company name, defaults to the active company in tally'),
-  from: z.string().optional().describe('start date in yyyy-mm-dd format'),
+  from: z.string().optional().describe('start date in yyyy-mm-dd format, use this to limit results'),
   to: z.string().optional().describe('end date in yyyy-mm-dd format'),
+  limit: z.number().optional().describe('max number of rows to return, defaults to 50'),
 });
 
 const readAnnotations = {
@@ -21,6 +22,32 @@ const readAnnotations = {
   idempotentHint: true as const,
   openWorldHint: false as const,
 };
+
+// vouchers from tally have tons of nested fields, trim to essentials
+const VOUCHER_SUMMARY_KEYS = [
+  'VOUCHERTYPENAME', 'VOUCHERNUMBER', 'DATE', 'PARTYLEDGERNAME',
+  'AMOUNT', 'NARRATION', 'GUID', 'MASTERID',
+];
+
+function summarizeRow(row: Record<string, unknown>, entity: string): Record<string, unknown> {
+  if (entity !== 'vouchers') return row;
+  const summary: Record<string, unknown> = {};
+  for (const key of VOUCHER_SUMMARY_KEYS) {
+    if (key in row) summary[key] = row[key];
+  }
+  // include ledger names from entries so the agent knows what accounts were used
+  const ledgerEntries = row['ALLLEDGERENTRIES.LIST'] ?? row['LEDGERENTRIES.LIST'];
+  if (Array.isArray(ledgerEntries)) {
+    summary.ledgerEntries = ledgerEntries.map((e: Record<string, unknown>) => ({
+      ledgerName: e.LEDGERNAME,
+      amount: e.AMOUNT,
+    }));
+  } else if (ledgerEntries && typeof ledgerEntries === 'object') {
+    const e = ledgerEntries as Record<string, unknown>;
+    summary.ledgerEntries = [{ ledgerName: e.LEDGERNAME, amount: e.AMOUNT }];
+  }
+  return summary;
+}
 
 interface SimpleEntity {
   name: string;
@@ -62,8 +89,23 @@ export function registerReadTools(server: McpServer, bridge: BridgeClient): void
           from: 'from' in params ? params.from as string | undefined : undefined,
           to: 'to' in params ? params.to as string | undefined : undefined,
         });
+
+        const limit = ('limit' in params && typeof params.limit === 'number') ? params.limit : 20;
+        const rows = result.rows || [];
+        const truncated = rows.length > limit;
+        const sliced = truncated ? rows.slice(-limit) : rows;
+        const summarized = sliced.map(r => summarizeRow(r as Record<string, unknown>, e.entity));
+
+        const output = {
+          ...result,
+          rows: summarized,
+          rowCount: sliced.length,
+          totalRows: rows.length,
+          ...(truncated ? { note: `showing last ${limit} of ${rows.length} rows. use date filters or increase limit to see more.` } : {}),
+        };
+
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
           _meta: readAnnotations,
         };
       },

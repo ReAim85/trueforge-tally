@@ -39,7 +39,44 @@ when creating vouchers, remember:
 - for payments: debit the party, credit the bank/cash account
 - always include the party ledger name
 
-see `references/voucher-patterns.md` for example payloads.
+### important: purchase and sales bills must use inventory entries
+
+when creating a purchase or sales voucher from a bill/invoice that has line items (products with quantity, rate, unit), you MUST include `inventoryEntries` with each stock item. do NOT put the item amount in "Purchase Accounts" or "Sales Account" ledger entry. the ledger entries should only have the party and tax ledgers. tally calculates the purchase/sales amount from the inventory entries automatically.
+
+correct purchase voucher with items:
+```json
+{
+  "voucherTypeName": "Purchase",
+  "isInvoice": true,
+  "partyLedgerName": "Supplier Name",
+  "ledgerEntries": [
+    { "ledgerName": "Supplier Name", "amount": -5900 },
+    { "ledgerName": "CGST Input", "amount": 450 },
+    { "ledgerName": "SGST Input", "amount": 450 }
+  ],
+  "inventoryEntries": [
+    {
+      "stockItemName": "Widget A",
+      "quantity": 100,
+      "rate": 50,
+      "amount": 5000,
+      "unit": "Nos",
+      "accountingAllocations": [
+        { "ledgerName": "Purchase Accounts", "amount": 5000 }
+      ]
+    }
+  ]
+}
+```
+
+key points:
+- each inventory entry MUST have `accountingAllocations` with the purchase/sales ledger. without this tally gives "No Accounting Information!" error
+- the `accountingAllocations` ledger is typically "Purchase Accounts" for purchases or "Sales Account" for sales
+- do NOT put "Purchase Accounts" in the top level `ledgerEntries`. it goes inside inventory entry's `accountingAllocations`
+- top level `ledgerEntries` should only have the party (credit) and tax ledgers (cgst, sgst, igst)
+- `isInvoice` must be `true` for item invoices
+
+see `references/voucher-patterns.md` for more examples.
 
 ## when to ask for approval
 

@@ -23,7 +23,7 @@ services:
       - '3001:3001'
     environment:
       MCP_PORT: 3001
-      BRIDGE_URL: http://bridge-server:8080
+      BRIDGE_URL: https://medullated-salvatore-semiskilled.ngrok-free.dev
       BRIDGE_API_KEY: ${BRIDGE_API_KEY}
       BRIDGE_AGENT_ID: ${BRIDGE_AGENT_ID}
     depends_on:
