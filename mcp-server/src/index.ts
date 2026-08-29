@@ -1,5 +1,12 @@
 // tally mcp server - connects trueforge to tallyprime via the bridge server
 
+// load .env from project root
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { config } from 'dotenv';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+config({ path: resolve(__dirname, '../../.env') });
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express from 'express';
@@ -8,7 +15,7 @@ import { registerReadTools } from './tools/read-tools.js';
 import { registerWriteTools } from './tools/write-tools.js';
 import { registerAiTools } from './tools/ai-tools.js';
 
-const bridgeUrl = process.env.BRIDGE_URL || 'http://localhost:8080';
+const bridgeUrl = process.env.BRIDGE_URL || 'https://medullated-salvatore-semiskilled.ngrok-free.dev';
 const bridgeApiKey = process.env.BRIDGE_API_KEY;
 const bridgeAgentId = process.env.BRIDGE_AGENT_ID;
 const port = Number(process.env.MCP_PORT || process.env.PORT) || 3001;
@@ -52,6 +59,10 @@ app.post('/mcp', async (req, res) => {
   });
   await server.connect(transport);
   await transport.handleRequest(req, res, req.body);
+});
+
+app.get('/mcp', async (req, res) => {
+  res.status(405).json({ error: 'use POST for mcp requests' });
 });
 
 app.delete('/mcp', async (req, res) => {
