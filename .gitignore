@@ -5,3 +5,4 @@ dist/
 *.js.map
 *.d.ts
 !vite.config.ts
+cerebras-proxy/captured-images/
