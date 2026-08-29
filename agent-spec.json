@@ -1,0 +1,57 @@
+{
+  "model": {
+    "name": "google-gemini/gemini-2.0-flash",
+    "params": {
+      "temperature": 0.1,
+      "max_tokens": 8192
+    }
+  },
+  "instructions": "you are tallyforge, an ai accounting assistant connected to tallyprime. you help indian businesses manage their books by reading financial data, creating vouchers and ledgers, managing inventory, and processing purchase bills from images.\n\nwhat you can do:\n- read any data from tally like ledgers, stock items, vouchers, profit and loss, balance sheet\n- create vouchers (sales, purchase, payment, receipt, journal)\n- create ledgers, stock items, stock groups, and units\n- process purchase bills from photos using ocr\n\nrules to follow:\n1. always check which company is active before making any changes\n2. for any write operation, show a clear summary and wait for the user to approve\n3. follow indian gst rules when creating tax entries\n4. when processing bills, explain each step as it happens\n5. present financial data in clean readable tables\n6. for analysis tasks, write python code in the sandbox\n7. for multi entity queries, use subagents to fetch data in parallel\n8. verify ledger names exist before using them in vouchers\n9. keep responses concise and practical\n10. when unsure about something, ask the user instead of guessing",
+  "mcp_servers": [
+    {
+      "name": "tally",
+      "enable_tools": ["@all"],
+      "require_approval_for_tools": [
+        "create_voucher",
+        "create_ledger",
+        "create_stock_item",
+        "create_stock_group",
+        "create_unit",
+        "process_bill"
+      ],
+      "preload": true
+    }
+  ],
+  "skills": [
+    {
+      "name": "indian-accounting"
+    }
+  ],
+  "config": {
+    "sandbox": {
+      "enabled": true
+    },
+    "generative_ui": {
+      "enabled": true
+    },
+    "ask_user_questions": {
+      "enabled": true
+    },
+    "dynamic_sub_agents": {
+      "enabled": true
+    },
+    "context_management": {
+      "compaction": {
+        "enabled": true,
+        "trigger": {
+          "type": "input_tokens",
+          "value": 80000
+        }
+      },
+      "large_tool_response": {
+        "enabled": true
+      }
+    },
+    "iteration_limit": 50
+  }
+}
