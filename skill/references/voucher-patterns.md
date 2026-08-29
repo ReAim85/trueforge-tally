@@ -46,7 +46,11 @@ buying 100 units of a product at 50 rs each with 18% gst:
       "stockItemName": "Widget A",
       "quantity": 100,
       "rate": 50,
-      "amount": 5000
+      "amount": 5000,
+      "unit": "Nos",
+      "accountingAllocations": [
+        { "ledgerName": "Purchase Accounts", "amount": 5000 }
+      ]
     }
   ]
 }
