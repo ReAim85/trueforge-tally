@@ -8,17 +8,21 @@ const PROXY_URL = process.env.CEREBRAS_PROXY_URL || 'http://localhost:9100';
 
 export function registerAiTools(server: McpServer, bridge: BridgeClient): void {
 
-  // fetch the latest uploaded image/pdf captured by the proxy
+  // fetch the latest uploaded image/pdf captured by the proxy for a given session
   server.tool(
     'get_uploaded_file',
-    'get the latest file (image or pdf) that the user uploaded in the chat. the cerebras proxy captures inline files automatically. use this before calling extract_bill or process_bill to get the base64 data you need.',
-    {},
-    async () => {
+    'get the latest file (image or pdf) that the user uploaded in the chat. the cerebras proxy captures inline files automatically. use this before calling extract_bill or process_bill to get the base64 data you need. requires the session id that identifies the current chat session.',
+    {
+      sessionId: z.string().describe('the session id for the current chat session. this scopes the file lookup to the correct user.'),
+    },
+    async (params) => {
       try {
-        const resp = await fetch(`${PROXY_URL}/latest-image`);
+        const resp = await fetch(`${PROXY_URL}/latest-image`, {
+          headers: { 'x-session-id': params.sessionId },
+        });
         if (!resp.ok) {
           return {
-            content: [{ type: 'text' as const, text: 'no file has been uploaded yet. ask the user to upload a bill image or pdf.' }],
+            content: [{ type: 'text' as const, text: 'no file has been uploaded for this session. ask the user to upload a bill image or pdf.' }],
           };
         }
         const data = await resp.json() as { id: string; base64: string; mimeType: string };

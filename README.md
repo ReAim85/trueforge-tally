@@ -117,13 +117,97 @@ trueforge-tally/
   docker-compose.yml   one command setup
 ```
 
+## about the tally desktop connector
+
+the desktop agent that connects to tallyprime on your pc is a separate closed source project. it's being developed further and will be open sourced once stable. for now you need it running alongside tally to use tallyforge. if you want to try the project without tally, the mcp server still responds to tool calls and you can see the full tool schema and agent behavior through trueforge.
+
 ## ai disclosure
 
 this project uses ai coding assistants (claude code) for development. all code has been reviewed and understood by the developer.
 
 ## qodo code review evidence
 
-*section will be updated with pr links after review*
+**pull request:** [PR #___](https://github.com/reaim85/trueforge-tally/pull/1) (v1 branch into main)
+
+qodo reviewed the pr and found 7 issues (4 high, 3 medium). here is each finding with what i did about it.
+
+### 1. external tunnel receives credentials (high, security)
+
+![qodo finding 1](assets/qodo-1-external-tunnel-credentials.png)
+
+docker-compose.yml routes bridge traffic to a hardcoded ngrok tunnel instead of the local bridge-server container.
+
+**decision:**
+
+---
+
+### 2. latest upload leaks sessions (high, security)
+
+![qodo finding 2](assets/qodo-2-upload-leaks-sessions.png)
+
+the proxy uses a single global `latestImageId` so any session can access another session's uploaded file.
+
+**decision:**
+
+---
+
+### 3. compressed responses are corrupted (high, correctness)
+
+![qodo finding 3](assets/qodo-3-compressed-responses-corrupted.png)
+
+the proxy streams `fetch()`'s decompressed body but copies the upstream `content-encoding` and `content-length` headers unchanged, breaking compressed responses.
+
+**decision:**
+
+---
+
+### 4. upload tool lacks deployment (high, reliability)
+
+![qodo finding 4](assets/qodo-4-upload-tool-lacks-deployment.png)
+
+`get_uploaded_file` defaults to `localhost:9100` but the docker deployment doesn't start or expose the proxy, so the tool always fails after `docker compose up`.
+
+**decision:**
+
+---
+
+### 5. uploads can exhaust resources (medium, reliability)
+
+![qodo finding 5](assets/qodo-5-uploads-exhaust-resources.png)
+
+the proxy buffers every request in memory and writes captured files synchronously with no size limit or cleanup, which can exhaust memory or disk.
+
+**decision:**
+
+---
+
+### 6. limit contract is broken (medium, correctness)
+
+![qodo finding 6](assets/qodo-6-limit-contract-broken.png)
+
+the `limit` param accepts zero, negative, and fractional numbers. `limit: 0` returns every row, negative limits return the wrong subset. the schema says default is 50 but the code uses 20.
+
+**decision:**
+
+---
+
+### 7. voucher items become unreadable (medium, correctness)
+
+![qodo finding 7](assets/qodo-7-voucher-items-unreadable.png)
+
+`get_vouchers` strips all fields except a fixed allowlist, dropping inventory entries and other transaction details even when no truncation was requested.
+
+**decision:**
+
+---
+
+### review timeline
+
+1. pushed initial pr with all hackathon code
+2. qodo ran automated review and posted 7 findings
+3. addressed the issues (fixed or dismissed with reasoning)
+4. qodo re-reviewed the final code
+5. merged to main
 
 ## license
 

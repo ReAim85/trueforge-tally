@@ -13,8 +13,8 @@ const PORT = Number(process.env.PROXY_PORT) || 9100;
 const IMAGE_DIR = join(import.meta.dirname, 'captured-images');
 if (!existsSync(IMAGE_DIR)) mkdirSync(IMAGE_DIR, { recursive: true });
 
-// track the latest captured image for easy access
-let latestImageId = null;
+// map session id to its most recent captured image id
+const sessionImages = new Map();
 
 const server = http.createServer(async (req, res) => {
   // serve captured images
@@ -33,10 +33,17 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // return the latest image as base64 for the mcp tool
-  if (req.method === 'GET' && req.url === '/latest-image') {
-    if (latestImageId) {
-      const files = ['png', 'jpg', 'jpeg', 'pdf'].map(ext => join(IMAGE_DIR, `${latestImageId}.${ext}`));
+  // return captured image as base64 for the mcp tool, scoped to a session
+  if (req.method === 'GET' && req.url?.startsWith('/latest-image')) {
+    const sessionId = req.headers['x-session-id'];
+    if (!sessionId) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'x-session-id header required' }));
+      return;
+    }
+    const imageId = sessionImages.get(sessionId);
+    if (imageId) {
+      const files = ['png', 'jpg', 'jpeg', 'pdf'].map(ext => join(IMAGE_DIR, `${imageId}.${ext}`));
       const found = files.find(f => existsSync(f));
       if (found) {
         const data = readFileSync(found);
@@ -44,7 +51,7 @@ const server = http.createServer(async (req, res) => {
         const mime = ext === 'png' ? 'image/png' : ext === 'pdf' ? 'application/pdf' : 'image/jpeg';
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({
-          id: latestImageId,
+          id: imageId,
           base64: data.toString('base64'),
           mimeType: mime,
         }));
@@ -52,7 +59,7 @@ const server = http.createServer(async (req, res) => {
       }
     }
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'no image captured yet' }));
+    res.end(JSON.stringify({ error: 'no image captured for this session' }));
     return;
   }
 
@@ -89,10 +96,11 @@ const server = http.createServer(async (req, res) => {
                   const b64 = dataMatch[2];
                   const ext = mime.includes('png') ? 'png' : mime.includes('pdf') ? 'pdf' : 'jpg';
                   const id = randomUUID().slice(0, 8);
-                  latestImageId = id;
+                  const sessionId = req.headers['x-session-id'];
+                  if (sessionId) sessionImages.set(sessionId, id);
                   const filepath = join(IMAGE_DIR, `${id}.${ext}`);
                   writeFileSync(filepath, Buffer.from(b64, 'base64'));
-                  console.log(`captured image: ${id}.${ext} (${(b64.length * 0.75 / 1024).toFixed(0)}kb)`);
+                  console.log(`captured image: ${id}.${ext} session=${sessionId || 'none'} (${(b64.length * 0.75 / 1024).toFixed(0)}kb)`);
                 }
               }
 
@@ -135,6 +143,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`cerebras proxy running on port ${PORT}`);
   console.log(`forwarding to ${CEREBRAS_URL}`);
-  console.log(`latest image endpoint: http://localhost:${PORT}/latest-image`);
+  console.log(`latest image endpoint: http://localhost:${PORT}/latest-image (requires x-session-id header)`);
   console.log(`use http://localhost:${PORT}/v1 as your base url in trueforge`);
 });

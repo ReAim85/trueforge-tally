@@ -15,7 +15,7 @@ import { registerReadTools } from './tools/read-tools.js';
 import { registerWriteTools } from './tools/write-tools.js';
 import { registerAiTools } from './tools/ai-tools.js';
 
-const bridgeUrl = process.env.BRIDGE_URL || 'https://medullated-salvatore-semiskilled.ngrok-free.dev';
+const bridgeUrl = process.env.BRIDGE_URL || 'http://localhost:8080';
 const bridgeApiKey = process.env.BRIDGE_API_KEY;
 const bridgeAgentId = process.env.BRIDGE_AGENT_ID;
 const port = Number(process.env.MCP_PORT || process.env.PORT) || 3001;
